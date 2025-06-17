@@ -1,9 +1,19 @@
-from fastapi import FastAPI
-from app.api import summarize
-from app.core.config import settings
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, AnyHttpUrl
 
 app = FastAPI(title="Note Summarizer API")
 
-app.include_router(summarize.router)
+
+class LinkInput(BaseModel):
+    link: AnyHttpUrl
 
 
+class Summary(BaseModel):
+    link: AnyHttpUrl
+    text: str
+    text_summary: str
+
+
+@app.post("/summarize", response_model=Summary)
+def summarize(link_input: LinkInput):
+    
