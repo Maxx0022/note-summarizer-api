@@ -12,6 +12,7 @@ load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 openAI_client = OpenAI(api_key=openai_api_key)  # noqa: N816
 
+
 class LinkInput(BaseModel):
     link: AnyHttpUrl
 
@@ -30,7 +31,6 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
         "Avoid unnecessary details and focus on the key points:\n\n"
         f"{article_text}"
     )
-
     response = openAI_client.responses.create(
         model="gpt-4o-mini",
         input=[
@@ -38,8 +38,9 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
             {"role": "user", "content": user_prompt},
         ],
     )
-
     return response.output_text
+
+
 
 @app.post("/summarize", response_model=Summary)
 async def summarize(link_input: LinkInput):
