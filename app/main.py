@@ -45,7 +45,7 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
     return response.output_text
 
 
-@app.post("/summarize/link", response_model=Summary)
+@app.post("/summarize-link", response_model=Summary)
 def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  # noqa: B008
     url_str = str(link_input.link)
 
@@ -75,7 +75,7 @@ def get_summary(summarization_id: int, session: Session = Depends(get_session)):
     return summarization
 
 
-@app.post("/summarize/text", response_model=Summary)
+@app.post("/summarize-text", response_model=Summary)
 def get_text_summary(text_input: TextInput, session: Session = Depends(get_session)):
     text_summary = get_openAI_summarization(text_input.text)
     summary = Summary(link=None, text=text_input.text, text_summary=text_summary)
