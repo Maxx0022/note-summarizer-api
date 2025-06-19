@@ -6,7 +6,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from sqlmodel import Session, select
 from .models.summaries import Summary
-from .db.database import get_session, init_db
+from .db.database import get_session, init_db, reset_db
 
 app = FastAPI(title="Website Summarizer API")
 
@@ -14,11 +14,17 @@ app = FastAPI(title="Website Summarizer API")
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 openAI_client = OpenAI(api_key=openai_api_key)  # noqa: N816
+
+reset_db()
 init_db()
 
 
 class LinkInput(BaseModel):
     link: AnyHttpUrl
+
+
+class TextInput(BaseModel):
+    text: str
 
 
 def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
@@ -39,7 +45,7 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
     return response.output_text
 
 
-@app.post("/summarize", response_model=Summary)
+@app.post("/summarize/link", response_model=Summary)
 def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  # noqa: B008
     url_str = str(link_input.link)
 
@@ -60,9 +66,22 @@ def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  
 
     return summary
 
+
 @app.get("/summarization/{summarization_id}", response_model=Summary)
 def get_summary(summarization_id: int, session: Session = Depends(get_session)):  # noqa: B008
     summarization = session.get(Summary, summarization_id)
     if not summarization:
         raise HTTPException(status_code=404, detail="summarization not found")
     return summarization
+
+
+@app.post("/summarize/text", response_model=Summary)
+def get_text_summary(text_input: TextInput, session: Session = Depends(get_session)):
+    text_summary = get_openAI_summarization(text_input.text)
+    summary = Summary(link=None, text=text_input.text, text_summary=text_summary)
+
+    session.add(summary)
+    session.commit()
+    session.refresh(summary)
+
+    return summary
