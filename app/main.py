@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel, AnyHttpUrl
 from newspaper import Article
 from openai import OpenAI
@@ -40,10 +40,23 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
 
 
 @app.post("/summarize", response_model=Summary)
-async def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  # noqa: B008
+def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  # noqa: B008
     url_str = str(link_input.link)
     article = Article(url_str)
     article.download()
     article.parse()
     summary_text = get_openAI_summarization(article.text)
-    return Summary(id=None, link=url_str, text=article.text, text_summary=summary_text)
+    summary = Summary(link=url_str, text=article.text, text_summary=summary_text)
+
+    session.add(summary)
+    session.commit()
+    session.refresh(summary)
+
+    return summary
+
+@app.get("/summarization/{summarization_id}", response_model=Summary)
+def get_summary(summarization_id: int, session: Session = Depends(get_session)):  # noqa: B008
+    summarization = session.get(Summary, summarization_id)
+    if not summarization:
+        raise HTTPException(status_code=404, detail="summarization not found")
+    return summarization
