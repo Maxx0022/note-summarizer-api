@@ -1,9 +1,12 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from pydantic import BaseModel, AnyHttpUrl
 from newspaper import Article
 from openai import OpenAI
 from dotenv import load_dotenv
+from sqlmodel import Session
+from .models.summaries import Summary
+from .db.database import get_session, init_db
 
 app = FastAPI(title="Website Summarizer API")
 
@@ -11,16 +14,11 @@ app = FastAPI(title="Website Summarizer API")
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 openAI_client = OpenAI(api_key=openai_api_key)  # noqa: N816
+init_db()
 
 
 class LinkInput(BaseModel):
     link: AnyHttpUrl
-
-
-class Summary(BaseModel):
-    link: str
-    text: str
-    text_summary: str
 
 
 def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
@@ -41,13 +39,11 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
     return response.output_text
 
 
-
 @app.post("/summarize", response_model=Summary)
-async def summarize(link_input: LinkInput):
+async def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  # noqa: B008
     url_str = str(link_input.link)
     article = Article(url_str)
     article.download()
     article.parse()
     summary_text = get_openAI_summarization(article.text)
-
-    return Summary(link=url_str, text=article.text, text_summary=summary_text)
+    return Summary(id=None, link=url_str, text=article.text, text_summary=summary_text)
