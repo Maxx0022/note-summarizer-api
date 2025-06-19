@@ -4,7 +4,7 @@ from pydantic import BaseModel, AnyHttpUrl
 from newspaper import Article
 from openai import OpenAI
 from dotenv import load_dotenv
-from sqlmodel import Session
+from sqlmodel import Session, select
 from .models.summaries import Summary
 from .db.database import get_session, init_db
 
@@ -42,6 +42,12 @@ def get_openAI_summarization(article_text: str) -> str:  # noqa: N802
 @app.post("/summarize", response_model=Summary)
 def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  # noqa: B008
     url_str = str(link_input.link)
+
+    stored_summary = session.exec(select(Summary).where(Summary.link == url_str)).first()
+
+    if stored_summary:
+        return stored_summary
+
     article = Article(url_str)
     article.download()
     article.parse()
