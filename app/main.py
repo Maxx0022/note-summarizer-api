@@ -1,6 +1,7 @@
 import os
+from typing import Annotated
 from fastapi import FastAPI, Depends, HTTPException
-from pydantic import BaseModel, AnyHttpUrl, conint
+from pydantic import BaseModel, AnyHttpUrl, Field
 from newspaper import Article
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -19,12 +20,12 @@ init_db()
 
 class LinkInput(BaseModel):
     link: AnyHttpUrl
-    length_index: int
+    length_index: Annotated[int, Field(strict=True, gt=0, le=10)]
 
 
 class TextInput(BaseModel):
     text: str
-    length_index: int
+    length_index: Annotated[int, Field(strict=True, gt=0, le=10)]
 
 
 LENGTH_INDEX_MODEL = {
