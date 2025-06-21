@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel, AnyHttpUrl, Field
 from newspaper import Article
+from trafilatura import fetch_url, extract
 from openai import OpenAI
 from dotenv import load_dotenv
 from sqlmodel import Session, select
@@ -27,6 +28,16 @@ class TextInput(BaseModel):
     text: str
     length_index: Annotated[int, Field(strict=True, gt=0, le=10)]
 
+
+def get_newspaper3k_extraction(url):
+    article = Article(url)
+    article.download()
+    article.parse()
+    return article
+
+def get_trafilatura_extraction(url):
+    downloaded_article = fetch_url(url)
+    return extract(downloaded_article)
 
 LENGTH_INDEX_MODEL = {
     1: "Summarize this input in 1-2 sentences.",
@@ -112,11 +123,13 @@ def summarize(link_input: LinkInput, session: Session = Depends(get_session)):  
     # if stored_summary:
     #     return stored_summary
 
-    article = Article(url_str)
-    article.download()
-    article.parse()
-    summary_text = get_openAI_summarization(article.text, link_input.length_index)
-    summary = Summary(link=url_str, text=article.text, text_summary=summary_text)
+    article = get_trafilatura_extraction(url_str)
+    if not article:
+        print("trafilatura extraction has failed, falling back to newspaper3k extraction...")
+        article = get_newspaper3k_extraction(url_str).text
+
+    summary_text = get_openAI_summarization(article, link_input.length_index)
+    summary = Summary(link=url_str, text=article, text_summary=summary_text)
 
     session.add(summary)
     session.commit()
