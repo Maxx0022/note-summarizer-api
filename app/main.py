@@ -1,6 +1,6 @@
 import os
 from typing import Annotated
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile
 from pydantic import BaseModel, AnyHttpUrl, Field
 from newspaper import Article
 from trafilatura import fetch_url, extract
@@ -35,9 +35,11 @@ def get_newspaper3k_extraction(url):
     article.parse()
     return article
 
+
 def get_trafilatura_extraction(url):
     downloaded_article = fetch_url(url)
     return extract(downloaded_article)
+
 
 LENGTH_INDEX_MODEL = {
     1: "Summarize this input in 1-2 sentences.",
@@ -156,3 +158,10 @@ def get_text_summary(text_input: TextInput, session: Session = Depends(get_sessi
     session.refresh(summary)
 
     return summary
+
+
+@app.post("/summarize-file")
+async def get_file_summary(file: UploadFile):
+    if file.content_type not in {"application/pdf", "text/plain"}:
+        raise HTTPException(400, detail="Please submit a PDF or TXT file")
+
