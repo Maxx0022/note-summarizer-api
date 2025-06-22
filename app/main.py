@@ -1,7 +1,6 @@
 import os
 from typing import Annotated
-from fastapi import FastAPI, Depends, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, Response
 from pydantic import BaseModel, AnyHttpUrl, Field
 from newspaper import Article
 from trafilatura import fetch_url, extract
@@ -52,7 +51,12 @@ def extract_pdf_text(file: UploadFile) -> str:
     return text
 
 
-def create_pdf_file(summarization):
+def create_pdf_file(summarization: str):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("arial", size=12)
+    pdf.cell(text=summarization)
+    return pdf
 
 
 LENGTH_INDEX_MODEL = {
@@ -194,5 +198,11 @@ def get_pdf(summarization_id: int, session: Session = Depends(get_session)):
     summarization = session.get(Summary, summarization_id)
     if not summarization:
         raise HTTPException(status_code=404, detail="summarization not found")
-    pdf = FPDF()
-    pdf.add_page
+    pdf = create_pdf_file(summarization.text_summary)
+    pdf_bytes = bytes(pdf.output())
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={'Content-Disposition': 'attachment; filename=test.pdf'}
+    )
