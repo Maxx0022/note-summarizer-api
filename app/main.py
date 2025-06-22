@@ -1,12 +1,15 @@
 import os
 from typing import Annotated
 from fastapi import FastAPI, Depends, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, AnyHttpUrl, Field
 from newspaper import Article
 from trafilatura import fetch_url, extract
 from openai import OpenAI
 from dotenv import load_dotenv
 from sqlmodel import Session, select
+from pypdf import PdfReader
+from fpdf import FPDF
 from .models.summaries import Summary
 from .db.database import get_session, init_db
 
@@ -29,16 +32,27 @@ class TextInput(BaseModel):
     length_index: Annotated[int, Field(strict=True, gt=0, le=10)]
 
 
-def get_newspaper3k_extraction(url):
+def get_newspaper3k_extraction(url: str):
     article = Article(url)
     article.download()
     article.parse()
     return article
 
 
-def get_trafilatura_extraction(url):
+def get_trafilatura_extraction(url: str):
     downloaded_article = fetch_url(url)
     return extract(downloaded_article)
+
+
+def extract_pdf_text(file: UploadFile) -> str:
+    pdf_reader = PdfReader(file.file)
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text() or ""
+    return text
+
+
+def create_pdf_file(summarization):
 
 
 LENGTH_INDEX_MODEL = {
@@ -161,7 +175,24 @@ def get_text_summary(text_input: TextInput, session: Session = Depends(get_sessi
 
 
 @app.post("/summarize-file")
-async def get_file_summary(file: UploadFile):
+async def get_file_summary(file: UploadFile, length_index: int, session: Session = Depends(get_session)):
     if file.content_type not in {"application/pdf", "text/plain"}:
         raise HTTPException(400, detail="Please submit a PDF or TXT file")
+    
+    text = extract_pdf_text(file)
+    text_summary = get_openAI_summarization(text, length_index)
+    summary = Summary(link=None, text=text, text_summary=text_summary)
 
+    session.add(summary)
+    session.commit()
+    session.refresh(summary)
+    return summary
+
+
+@app.get("/export-pdf/{summarization_id}")
+def get_pdf(summarization_id: int, session: Session = Depends(get_session)):
+    summarization = session.get(Summary, summarization_id)
+    if not summarization:
+        raise HTTPException(status_code=404, detail="summarization not found")
+    pdf = FPDF()
+    pdf.add_page
