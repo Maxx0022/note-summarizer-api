@@ -12,7 +12,7 @@ from fpdf import FPDF
 from .models.summaries import Summary
 from .db.database import get_session, init_db
 
-app = FastAPI(title="Website Summarizer API")
+app = FastAPI(title="Note Summarizer API")
 
 
 load_dotenv()
@@ -55,7 +55,7 @@ def create_pdf_file(summarization: str):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("arial", size=12)
-    pdf.cell(text=summarization)
+    pdf.cell(text=summarization, h=100, w=100)
     return pdf
 
 
