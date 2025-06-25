@@ -15,7 +15,7 @@ Please note: This project is a work in progress, and some features may still be 
 1. Clone the repository
 
 ```
-git clone git@gitlab.com:max8030844/note-summarizer-api.git
+git clone git@github.com:Maxx0022/note-summarizer-api.git
 ```
 
 2. Install dependencies using Poetry
